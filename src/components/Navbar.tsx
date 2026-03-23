@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Search, BookOpen, Library } from "lucide-react";
+import { Search, BookOpen, Library, LogIn, LogOut, Shield, User } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 const Navbar = () => {
   const [searchOpen, setSearchOpen] = useState(false);
+  const { user, isAdmin, signOut } = useAuth();
 
   return (
     <motion.nav
@@ -18,7 +20,7 @@ const Navbar = () => {
           <span className="font-display text-xl font-bold text-gradient-gold">Luminara</span>
         </Link>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 sm:gap-6">
           {searchOpen ? (
             <motion.input
               initial={{ width: 0, opacity: 0 }}
@@ -34,10 +36,35 @@ const Navbar = () => {
               <Search className="h-5 w-5" />
             </button>
           )}
-          <Link to="/library" className="flex items-center gap-1.5 text-sm font-body text-muted-foreground transition-colors hover:text-foreground">
-            <Library className="h-4 w-4" />
-            <span className="hidden sm:inline">My Library</span>
-          </Link>
+
+          {user && (
+            <Link to="/library" className="flex items-center gap-1.5 text-sm font-body text-muted-foreground transition-colors hover:text-foreground">
+              <Library className="h-4 w-4" />
+              <span className="hidden sm:inline">My Library</span>
+            </Link>
+          )}
+
+          {isAdmin && (
+            <Link to="/admin" className="flex items-center gap-1.5 text-sm font-body text-muted-foreground transition-colors hover:text-foreground">
+              <Shield className="h-4 w-4" />
+              <span className="hidden sm:inline">Admin</span>
+            </Link>
+          )}
+
+          {user ? (
+            <button
+              onClick={() => signOut()}
+              className="flex items-center gap-1.5 text-sm font-body text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          ) : (
+            <Link to="/auth" className="flex items-center gap-1.5 text-sm font-body text-muted-foreground transition-colors hover:text-foreground">
+              <LogIn className="h-4 w-4" />
+              <span className="hidden sm:inline">Sign In</span>
+            </Link>
+          )}
         </div>
       </div>
     </motion.nav>
