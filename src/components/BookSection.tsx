@@ -1,0 +1,37 @@
+import { motion } from "framer-motion";
+import BookCard from "./BookCard";
+import { Book } from "@/data/books";
+
+interface BookSectionProps {
+  title: string;
+  subtitle?: string;
+  books: Book[];
+}
+
+const BookSection = ({ title, subtitle, books }: BookSectionProps) => {
+  if (books.length === 0) return null;
+
+  return (
+    <section className="py-16">
+      <div className="container">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.4 }}
+          className="mb-8"
+        >
+          <h2 className="font-display text-3xl font-bold text-foreground">{title}</h2>
+          {subtitle && <p className="mt-1 font-body text-sm text-muted-foreground">{subtitle}</p>}
+        </motion.div>
+        <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {books.map((book, i) => (
+            <BookCard key={book.id} book={book} index={i} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default BookSection;
