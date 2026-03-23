@@ -1,16 +1,47 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import Navbar from "@/components/Navbar";
+import HeroSection from "@/components/HeroSection";
+import BookSection from "@/components/BookSection";
+import GenreBar from "@/components/GenreBar";
+import { books, getTrendingBooks, getBooksByGenre } from "@/data/books";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+const Index = () => {
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const trending = getTrendingBooks();
+  const displayedBooks = selectedGenre ? getBooksByGenre(selectedGenre) : books;
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <HeroSection />
+      
+      <GenreBar selected={selectedGenre} onSelect={setSelectedGenre} />
+
+      {!selectedGenre && (
+        <BookSection
+          title="Trending Now"
+          subtitle="The most popular reads this week"
+          books={trending}
+        />
+      )}
+
+      <BookSection
+        title={selectedGenre ? selectedGenre : "All Books"}
+        subtitle={selectedGenre ? `Browse ${selectedGenre} titles` : "Explore our complete collection"}
+        books={displayedBooks}
+      />
+
+      {/* Footer */}
+      <footer className="border-t border-border bg-secondary/30 py-12">
+        <div className="container text-center">
+          <p className="font-display text-lg text-gradient-gold">Luminara</p>
+          <p className="mt-2 text-xs font-body text-muted-foreground">
+            Immersive AI-powered reading experiences
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
