@@ -14,16 +14,152 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      books: {
+        Row: {
+          author: string
+          content: string[]
+          cover_url: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          featured: boolean
+          genre: string
+          id: string
+          pages: number
+          rating: number
+          scene_data: Json[] | null
+          title: string
+          trending: boolean
+          updated_at: string
+        }
+        Insert: {
+          author: string
+          content?: string[]
+          cover_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          featured?: boolean
+          genre: string
+          id?: string
+          pages?: number
+          rating?: number
+          scene_data?: Json[] | null
+          title: string
+          trending?: boolean
+          updated_at?: string
+        }
+        Update: {
+          author?: string
+          content?: string[]
+          cover_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          featured?: boolean
+          genre?: string
+          id?: string
+          pages?: number
+          rating?: number
+          scene_data?: Json[] | null
+          title?: string
+          trending?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_library: {
+        Row: {
+          added_at: string
+          book_id: string
+          id: string
+          progress: number
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          book_id: string
+          id?: string
+          progress?: number
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          book_id?: string
+          id?: string
+          progress?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_library_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +286,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
