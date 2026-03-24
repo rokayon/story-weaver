@@ -45,9 +45,13 @@ const Navbar = () => {
           )}
 
           {isAdmin && (
-            <Link to="/admin" className="flex items-center gap-1.5 text-sm font-body text-muted-foreground transition-colors hover:text-foreground">
+            <Link
+              to="/admin"
+              className="flex items-center gap-1.5 text-sm font-body font-semibold text-primary transition-colors hover:text-primary/80 relative"
+            >
               <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Admin</span>
+              <span className="absolute -top-1 -right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
             </Link>
           )}
 
