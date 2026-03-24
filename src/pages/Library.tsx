@@ -1,11 +1,38 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Library as LibIcon, BookOpen } from "lucide-react";
-import { books } from "@/data/books";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import BookCard from "@/components/BookCard";
 import Navbar from "@/components/Navbar";
+import type { DbBook } from "@/hooks/useBooks";
 
 const LibraryPage = () => {
-  // Mock: show all books as "in library"
+  const { user } = useAuth();
+  const [books, setBooks] = useState<DbBook[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLibrary = async () => {
+      if (!user) { setLoading(false); return; }
+      const { data: libraryItems } = await supabase
+        .from("user_library")
+        .select("book_id")
+        .eq("user_id", user.id);
+
+      if (libraryItems && libraryItems.length > 0) {
+        const bookIds = libraryItems.map((item) => item.book_id);
+        const { data: booksData } = await supabase
+          .from("books")
+          .select("*")
+          .in("id", bookIds);
+        if (booksData) setBooks(booksData);
+      }
+      setLoading(false);
+    };
+    fetchLibrary();
+  }, [user]);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -19,10 +46,15 @@ const LibraryPage = () => {
           <h1 className="font-display text-3xl font-bold text-foreground">My Library</h1>
         </motion.div>
 
-        {books.length === 0 ? (
+        {loading ? (
+          <div className="py-20 text-center">
+            <p className="text-muted-foreground font-body">Loading...</p>
+          </div>
+        ) : books.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <BookOpen className="h-12 w-12 text-muted-foreground/30 mb-4" />
             <p className="text-muted-foreground font-body">Your library is empty.</p>
+            <p className="text-sm text-muted-foreground/60 font-body mt-1">Browse books and add them to your library.</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">

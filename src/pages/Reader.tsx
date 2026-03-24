@@ -1,8 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getBookById } from "@/data/books";
-import { supabase } from "@/integrations/supabase/client";
+import { useBook } from "@/hooks/useBooks";
 import SceneCanvas from "@/components/SceneCanvas";
 import type { SceneData } from "@/components/SceneCanvas";
 import { ArrowLeft, ChevronLeft, ChevronRight, Sun, Moon, Minus, Plus, BookOpen, Columns2, Maximize2 } from "lucide-react";
@@ -12,6 +11,7 @@ const defaultScene: SceneData = { weather: "clear", timeOfDay: "day", environmen
 const Reader = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { book, loading } = useBook(id || "");
   const [page, setPage] = useState(0);
   const [fontSize, setFontSize] = useState(18);
   const [darkMode, setDarkMode] = useState(true);
@@ -21,24 +21,8 @@ const Reader = () => {
   const touchStart = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Try local data first, then DB
-  const localBook = getBookById(id || "");
-  const [dbBook, setDbBook] = useState<any>(null);
-
-  useEffect(() => {
-    if (!localBook && id) {
-      supabase.from("books").select("*").eq("id", id).single().then(({ data }) => {
-        if (data) setDbBook(data);
-      });
-    }
-  }, [id, localBook]);
-
-  const book = localBook || dbBook;
-
-  // Scene data
   const getScene = useCallback((): SceneData => {
-    if (dbBook?.scene_data?.[page]) return dbBook.scene_data[page] as SceneData;
-    // Auto-generate from local book content
+    if (book?.scene_data?.[page]) return book.scene_data[page] as SceneData;
     if (book?.content?.[page]) {
       const text = book.content[page].toLowerCase();
       const scene: SceneData = {};
@@ -62,14 +46,13 @@ const Reader = () => {
       return scene;
     }
     return defaultScene;
-  }, [book, page, dbBook]);
+  }, [book, page]);
 
-  // Text highlighting animation
   useEffect(() => {
     if (!book?.content?.[page]) return;
     setHighlightIndex(-1);
     const words = book.content[page].split(" ");
-    const totalDuration = 8000; // 8 seconds per page
+    const totalDuration = 8000;
     const interval = totalDuration / words.length;
     let i = 0;
     const timer = setInterval(() => {
@@ -89,7 +72,6 @@ const Reader = () => {
     if (page > 0) { setDirection(-1); setPage(page - 1); }
   };
 
-  // Swipe handling
   const onTouchStart = (e: React.TouchEvent) => {
     touchStart.current = e.touches[0].clientX;
   };
@@ -103,7 +85,6 @@ const Reader = () => {
     touchStart.current = null;
   };
 
-  // Keyboard nav
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight" || e.key === " ") goNext();
@@ -112,6 +93,14 @@ const Reader = () => {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   });
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-muted-foreground font-body">Loading...</p>
+      </div>
+    );
+  }
 
   if (!book) {
     return (
@@ -137,7 +126,7 @@ const Reader = () => {
     if (!book.content[page]) return null;
     const words = book.content[page].split(" ");
     return (
-      <p className={`font-body leading-relaxed transition-colors duration-300`} style={{ fontSize: `${fontSize}px`, lineHeight: 1.8 }}>
+      <p className="font-body leading-relaxed transition-colors duration-300" style={{ fontSize: `${fontSize}px`, lineHeight: 1.8 }}>
         {words.map((word: string, i: number) => (
           <span
             key={i}
@@ -163,10 +152,9 @@ const Reader = () => {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Top bar */}
       <div className={`flex items-center justify-between border-b px-4 sm:px-6 py-3 ${controlBg} border-border/30`}>
         <button
-          onClick={() => navigate(localBook ? `/book/${book.id}` : `/book/${book.id}`)}
+          onClick={() => navigate(`/book/${book.id}`)}
           className={`flex items-center gap-1.5 text-sm font-body ${controlText} hover:opacity-80 transition-opacity`}
         >
           <ArrowLeft className="h-4 w-4" /> Exit
@@ -185,9 +173,7 @@ const Reader = () => {
         </div>
       </div>
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col lg:flex-row relative">
-        {/* Scene canvas panel */}
         {splitView && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -215,7 +201,6 @@ const Reader = () => {
           </motion.div>
         )}
 
-        {/* Text panel */}
         <div className={`flex-1 flex items-center justify-center relative px-4 ${splitView ? "lg:w-1/2" : ""}`}>
           <button
             onClick={goPrev}
@@ -252,7 +237,6 @@ const Reader = () => {
         </div>
       </div>
 
-      {/* Bottom controls */}
       <div className={`flex items-center justify-center gap-4 sm:gap-6 border-t px-4 sm:px-6 py-3 ${controlBg} border-border/30 flex-wrap`}>
         <button onClick={() => setFontSize(Math.max(14, fontSize - 2))} className={`rounded-full p-1.5 ${controlText} hover:opacity-80`}>
           <Minus className="h-4 w-4" />

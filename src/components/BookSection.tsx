@@ -1,11 +1,11 @@
 import { motion } from "framer-motion";
 import BookCard from "./BookCard";
-import { Book } from "@/data/books";
+import type { DbBook } from "@/hooks/useBooks";
 
 interface BookSectionProps {
   title: string;
   subtitle?: string;
-  books: Book[];
+  books: DbBook[];
 }
 
 const BookSection = ({ title, subtitle, books }: BookSectionProps) => {
