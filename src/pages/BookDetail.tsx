@@ -1,14 +1,43 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { getBookById } from "@/data/books";
-import { coverImages } from "@/data/coverImages";
-import { Star, ArrowLeft, BookOpen, Clock, FileText } from "lucide-react";
+import { useBook } from "@/hooks/useBooks";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { Star, ArrowLeft, BookOpen, Clock, FileText, PlusCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 
 const BookDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const book = getBookById(id || "");
+  const { book, loading } = useBook(id || "");
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const addToLibrary = async () => {
+    if (!user || !book) return;
+    const { error } = await supabase.from("user_library").insert({
+      user_id: user.id,
+      book_id: book.id,
+    });
+    if (error) {
+      if (error.code === "23505") {
+        toast({ title: "Already in library", description: "This book is already in your library." });
+      } else {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      }
+    } else {
+      toast({ title: "Added to library!" });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-muted-foreground font-body">Loading...</p>
+      </div>
+    );
+  }
 
   if (!book) {
     return (
@@ -18,14 +47,15 @@ const BookDetail = () => {
     );
   }
 
+  const coverSrc = book.cover_url || "/placeholder.svg";
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      {/* Hero backdrop */}
       <div className="relative h-[50vh] overflow-hidden">
         <img
-          src={coverImages[book.id]}
+          src={coverSrc}
           alt=""
           className="h-full w-full object-cover blur-2xl scale-110 opacity-30"
           width={640}
@@ -43,7 +73,6 @@ const BookDetail = () => {
         </button>
 
         <div className="grid gap-10 lg:grid-cols-[300px_1fr]">
-          {/* Cover */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -51,7 +80,7 @@ const BookDetail = () => {
           >
             <div className="overflow-hidden rounded-xl shadow-card shadow-glow">
               <img
-                src={coverImages[book.id]}
+                src={coverSrc}
                 alt={book.title}
                 width={640}
                 height={960}
@@ -60,7 +89,6 @@ const BookDetail = () => {
             </div>
           </motion.div>
 
-          {/* Info */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -103,17 +131,26 @@ const BookDetail = () => {
               >
                 <BookOpen className="h-4 w-4" /> Read Now
               </Link>
+              {user && (
+                <button
+                  onClick={addToLibrary}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-6 py-3.5 text-sm font-body font-semibold text-foreground transition-all hover:bg-muted"
+                >
+                  <PlusCircle className="h-4 w-4" /> Add to Library
+                </button>
+              )}
             </div>
 
-            {/* Preview */}
-            <div className="mt-12">
-              <h3 className="font-display text-xl font-semibold text-foreground mb-4">Preview</h3>
-              <div className="rounded-xl border border-border bg-card p-6 max-w-2xl">
-                <p className="font-body text-sm leading-relaxed text-card-foreground/80 italic">
-                  "{book.content[0]}"
-                </p>
+            {book.content && book.content.length > 0 && (
+              <div className="mt-12">
+                <h3 className="font-display text-xl font-semibold text-foreground mb-4">Preview</h3>
+                <div className="rounded-xl border border-border bg-card p-6 max-w-2xl">
+                  <p className="font-body text-sm leading-relaxed text-card-foreground/80 italic">
+                    "{book.content[0]}"
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </motion.div>
         </div>
       </div>

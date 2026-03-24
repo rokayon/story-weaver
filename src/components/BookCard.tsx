@@ -1,15 +1,16 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Book } from "@/data/books";
-import { coverImages } from "@/data/coverImages";
 import { Star } from "lucide-react";
+import type { DbBook } from "@/hooks/useBooks";
 
 interface BookCardProps {
-  book: Book;
+  book: DbBook;
   index?: number;
 }
 
 const BookCard = ({ book, index = 0 }: BookCardProps) => {
+  const coverSrc = book.cover_url || "/placeholder.svg";
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -18,9 +19,9 @@ const BookCard = ({ book, index = 0 }: BookCardProps) => {
     >
       <Link to={`/book/${book.id}`} className="group block">
         <div className="relative overflow-hidden rounded-lg shadow-card transition-all duration-300 group-hover:shadow-glow group-hover:-translate-y-1">
-          <div className="aspect-[2/3] overflow-hidden">
+          <div className="aspect-[2/3] overflow-hidden bg-muted">
             <img
-              src={coverImages[book.id]}
+              src={coverSrc}
               alt={book.title}
               loading="lazy"
               width={640}
