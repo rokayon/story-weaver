@@ -1,13 +1,88 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { BookOpen, Plus, Trash2, Edit, BarChart3, Users, TrendingUp, ArrowLeft, Save, X } from "lucide-react";
+import { BookOpen, Plus, Trash2, Edit, Users, TrendingUp, ArrowLeft, Save, X, Upload, FileText } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Book = Tables<"books">;
+
+const extractTextFromPdf = async (file: File): Promise<string> => {
+  // Read PDF as ArrayBuffer and extract text using a basic parser
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+  
+  // Extract text between stream/endstream markers (basic PDF text extraction)
+  const textParts: string[] = [];
+  const streamRegex = /stream\r?\n([\s\S]*?)endstream/g;
+  let match;
+  while ((match = streamRegex.exec(text)) !== null) {
+    const content = match[1];
+    // Extract text operators (Tj, TJ, ')
+    const tjRegex = /\(([^)]*)\)\s*Tj/g;
+    let tjMatch;
+    while ((tjMatch = tjRegex.exec(content)) !== null) {
+      textParts.push(tjMatch[1]);
+    }
+  }
+
+  // If stream extraction fails, try raw text extraction
+  if (textParts.length === 0) {
+    const rawText = text
+      .replace(/[^\x20-\x7E\n\r\t]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    // Split into rough pages (by form feeds or large gaps)
+    if (rawText.length > 100) {
+      return rawText;
+    }
+  }
+
+  return textParts.join(" ");
+};
+
+const splitTextIntoPages = (text: string, wordsPerPage = 150): string[] => {
+  const cleanText = text.replace(/\s+/g, " ").trim();
+  const words = cleanText.split(" ");
+  const pages: string[] = [];
+
+  for (let i = 0; i < words.length; i += wordsPerPage) {
+    const pageText = words.slice(i, i + wordsPerPage).join(" ");
+    if (pageText.trim().length > 10) {
+      pages.push(pageText.trim());
+    }
+  }
+
+  return pages.length > 0 ? pages : [cleanText];
+};
+
+const generateSceneData = (text: string) => {
+  const lower = text.toLowerCase();
+  const scene: Record<string, string> = {};
+
+  if (lower.includes("rain")) scene.weather = "rain";
+  else if (lower.includes("snow")) scene.weather = "snow";
+  else if (lower.includes("storm")) scene.weather = "storm";
+  else if (lower.includes("sun") || lower.includes("bright")) scene.weather = "sunny";
+  else scene.weather = "clear";
+
+  if (lower.includes("night") || lower.includes("moon") || lower.includes("dark") || lower.includes("midnight")) scene.timeOfDay = "night";
+  else if (lower.includes("sunset") || lower.includes("dusk") || lower.includes("evening")) scene.timeOfDay = "evening";
+  else if (lower.includes("dawn") || lower.includes("sunrise") || lower.includes("morning")) scene.timeOfDay = "morning";
+  else scene.timeOfDay = "day";
+
+  if (lower.includes("forest") || lower.includes("tree") || lower.includes("garden")) scene.environment = "forest";
+  else if (lower.includes("ocean") || lower.includes("sea") || lower.includes("water") || lower.includes("shore")) scene.environment = "ocean";
+  else if (lower.includes("city") || lower.includes("street") || lower.includes("building")) scene.environment = "city";
+  else if (lower.includes("mountain") || lower.includes("ridge") || lower.includes("hill")) scene.environment = "mountain";
+  else if (lower.includes("castle") || lower.includes("cathedral") || lower.includes("hall") || lower.includes("room")) scene.environment = "interior";
+  else scene.environment = "field";
+
+  return scene;
+};
 
 const Admin = () => {
   const { user, isAdmin, loading } = useAuth();
@@ -17,6 +92,8 @@ const Admin = () => {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Book | null>(null);
   const [stats, setStats] = useState({ totalBooks: 0, totalUsers: 0 });
+  const [pdfProcessing, setPdfProcessing] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -66,34 +143,52 @@ const Admin = () => {
     setShowForm(true);
   };
 
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      toast({ title: "Invalid file", description: "Please upload a PDF file.", variant: "destructive" });
+      return;
+    }
+
+    setPdfProcessing(true);
+    toast({ title: "Processing PDF...", description: "Extracting text from your PDF file." });
+
+    try {
+      const extractedText = await extractTextFromPdf(file);
+      if (extractedText.length < 50) {
+        toast({
+          title: "Limited text extracted",
+          description: "The PDF might be scanned/image-based. You can paste the text manually.",
+          variant: "destructive"
+        });
+        setPdfProcessing(false);
+        return;
+      }
+
+      const pages = splitTextIntoPages(extractedText);
+      setContentText(pages.join("\n---\n"));
+      setPages(pages.length);
+
+      // Try to extract title from filename
+      if (!title) {
+        const nameFromFile = file.name.replace(/\.pdf$/i, "").replace(/[-_]/g, " ");
+        setTitle(nameFromFile.charAt(0).toUpperCase() + nameFromFile.slice(1));
+      }
+
+      toast({ title: "PDF processed!", description: `Extracted ${pages.length} pages of content.` });
+    } catch (err) {
+      toast({ title: "Processing failed", description: "Could not extract text from this PDF.", variant: "destructive" });
+    } finally {
+      setPdfProcessing(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const contentArray = contentText.split("\n---\n").map(s => s.trim()).filter(Boolean);
-
-    // Generate scene_data from content
-    const sceneData = contentArray.map((text) => {
-      const scene: Record<string, string> = { text };
-      const lower = text.toLowerCase();
-      if (lower.includes("rain")) scene.weather = "rain";
-      else if (lower.includes("snow")) scene.weather = "snow";
-      else if (lower.includes("storm")) scene.weather = "storm";
-      else if (lower.includes("sun") || lower.includes("bright")) scene.weather = "sunny";
-      else scene.weather = "clear";
-
-      if (lower.includes("night") || lower.includes("moon") || lower.includes("dark") || lower.includes("midnight")) scene.timeOfDay = "night";
-      else if (lower.includes("sunset") || lower.includes("dusk") || lower.includes("evening")) scene.timeOfDay = "evening";
-      else if (lower.includes("dawn") || lower.includes("sunrise") || lower.includes("morning")) scene.timeOfDay = "morning";
-      else scene.timeOfDay = "day";
-
-      if (lower.includes("forest") || lower.includes("tree") || lower.includes("garden")) scene.environment = "forest";
-      else if (lower.includes("ocean") || lower.includes("sea") || lower.includes("water") || lower.includes("shore")) scene.environment = "ocean";
-      else if (lower.includes("city") || lower.includes("street") || lower.includes("building")) scene.environment = "city";
-      else if (lower.includes("mountain") || lower.includes("ridge") || lower.includes("hill")) scene.environment = "mountain";
-      else if (lower.includes("castle") || lower.includes("cathedral") || lower.includes("hall") || lower.includes("room")) scene.environment = "interior";
-      else scene.environment = "field";
-
-      return scene;
-    });
+    const sceneData = contentArray.map(generateSceneData);
 
     let coverUrl = editing?.cover_url || null;
 
@@ -199,6 +294,45 @@ const Admin = () => {
                 <h2 className="font-display text-xl font-bold text-foreground">{editing ? "Edit Book" : "Add New Book"}</h2>
                 <button onClick={resetForm} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
               </div>
+
+              {/* PDF Upload Section */}
+              <div className="mb-6 rounded-lg border-2 border-dashed border-border bg-secondary/50 p-6 text-center">
+                <input
+                  ref={pdfInputRef}
+                  type="file"
+                  accept=".pdf"
+                  onChange={handlePdfUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => pdfInputRef.current?.click()}
+                  disabled={pdfProcessing}
+                  className="flex items-center gap-2 mx-auto rounded-lg bg-accent px-4 py-2.5 text-sm font-body font-semibold text-accent-foreground hover:brightness-110 disabled:opacity-50"
+                >
+                  {pdfProcessing ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent-foreground/30 border-t-accent-foreground" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" />
+                      Upload PDF Book
+                    </>
+                  )}
+                </button>
+                <p className="mt-2 text-xs font-body text-muted-foreground">
+                  Upload a PDF to auto-extract text content and generate scene data
+                </p>
+              </div>
+
+              <div className="mb-3 flex items-center gap-2">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs font-body text-muted-foreground">or fill in manually</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <input placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} required className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none" />
@@ -209,7 +343,18 @@ const Admin = () => {
                   <input type="number" placeholder="Pages" value={pages || ""} onChange={e => setPages(Number(e.target.value))} className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none" />
                 </div>
                 <textarea placeholder="Description" value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none" />
-                <textarea placeholder="Content pages (separate with ---)" value={contentText} onChange={e => setContentText(e.target.value)} rows={6} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none" />
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-sm font-body text-muted-foreground">Content pages (separate with ---)</label>
+                    {contentText && (
+                      <span className="flex items-center gap-1 text-xs font-body text-primary">
+                        <FileText className="h-3 w-3" />
+                        {contentText.split("\n---\n").filter(Boolean).length} pages
+                      </span>
+                    )}
+                  </div>
+                  <textarea placeholder="Content pages (separate with ---)" value={contentText} onChange={e => setContentText(e.target.value)} rows={8} className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-body text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none" />
+                </div>
                 <div className="flex items-center gap-6">
                   <label className="flex items-center gap-2 text-sm font-body text-foreground">
                     <input type="checkbox" checked={featured} onChange={e => setFeatured(e.target.checked)} className="accent-primary" /> Featured
