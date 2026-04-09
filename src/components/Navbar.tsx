@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Search, BookOpen, Library, LogIn, LogOut, Shield, User } from "lucide-react";
+import { Search, BookOpen, Library, LogIn, LogOut, Shield, Sun, Moon } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 
 const Navbar = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const { user, isAdmin, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <motion.nav
@@ -36,6 +38,14 @@ const Navbar = () => {
               <Search className="h-5 w-5" />
             </button>
           )}
+
+          <button
+            onClick={toggleTheme}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </button>
 
           {user && (
             <Link to="/library" className="flex items-center gap-1.5 text-sm font-body text-muted-foreground transition-colors hover:text-foreground">
