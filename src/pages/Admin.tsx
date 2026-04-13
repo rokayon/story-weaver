@@ -4,8 +4,9 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { BookOpen, Plus, Trash2, Edit, Users, TrendingUp, ArrowLeft, Save, X, Upload, FileText } from "lucide-react";
+import { BookOpen, Plus, Trash2, Edit, Users, TrendingUp, ArrowLeft, Save, X, Upload, FileText, Shield } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import UserManagement from "@/components/UserManagement";
 
 type Book = Tables<"books">;
 
@@ -93,6 +94,7 @@ const Admin = () => {
   const [editing, setEditing] = useState<Book | null>(null);
   const [stats, setStats] = useState({ totalBooks: 0, totalUsers: 0 });
   const [pdfProcessing, setPdfProcessing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"books" | "users">("books");
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -257,16 +259,37 @@ const Admin = () => {
             <BookOpen className="h-6 w-6 text-primary" />
             <span className="font-display text-xl font-bold text-gradient-gold">Admin Panel</span>
           </div>
-          <button
-            onClick={() => { resetForm(); setShowForm(true); }}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-body font-semibold text-primary-foreground hover:brightness-110"
-          >
-            <Plus className="h-4 w-4" /> Add Book
-          </button>
+          <div className="flex items-center gap-1 rounded-lg bg-secondary p-1">
+            <button
+              onClick={() => setActiveTab("books")}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-body font-medium transition-colors ${activeTab === "books" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <BookOpen className="h-3.5 w-3.5" /> Books
+            </button>
+            <button
+              onClick={() => setActiveTab("users")}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-body font-medium transition-colors ${activeTab === "users" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <Shield className="h-3.5 w-3.5" /> Users & Roles
+            </button>
+          </div>
+          {activeTab === "books" && (
+            <button
+              onClick={() => { resetForm(); setShowForm(true); }}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-body font-semibold text-primary-foreground hover:brightness-110"
+            >
+              <Plus className="h-4 w-4" /> Add Book
+            </button>
+          )}
+          {activeTab === "users" && <div />}
         </div>
       </div>
 
       <div className="container py-8">
+        {activeTab === "users" ? (
+          <UserManagement />
+        ) : (
+        <>
         {/* Stats */}
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
           {[
@@ -406,6 +429,8 @@ const Admin = () => {
             <p className="py-12 text-center text-muted-foreground font-body">No books yet. Click "Add Book" to get started.</p>
           )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );
