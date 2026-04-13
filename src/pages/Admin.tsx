@@ -4,8 +4,9 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { BookOpen, Plus, Trash2, Edit, Users, TrendingUp, ArrowLeft, Save, X, Upload, FileText } from "lucide-react";
+import { BookOpen, Plus, Trash2, Edit, Users, TrendingUp, ArrowLeft, Save, X, Upload, FileText, Shield } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import UserManagement from "@/components/UserManagement";
 
 type Book = Tables<"books">;
 
