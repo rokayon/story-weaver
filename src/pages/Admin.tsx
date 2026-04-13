@@ -429,6 +429,8 @@ const Admin = () => {
             <p className="py-12 text-center text-muted-foreground font-body">No books yet. Click "Add Book" to get started.</p>
           )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );
