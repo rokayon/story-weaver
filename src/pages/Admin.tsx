@@ -286,6 +286,10 @@ const Admin = () => {
       </div>
 
       <div className="container py-8">
+        {activeTab === "users" ? (
+          <UserManagement />
+        ) : (
+        <>
         {/* Stats */}
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
           {[
